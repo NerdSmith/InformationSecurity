@@ -4,10 +4,10 @@ from feistel_cipher.utils.GenFunc import gen_func
 from feistel_cipher.utils.SecretKeyGen import SecretKeyGen
 from feistel_cipher.utils.TargetFunc import target_func
 
-BLOCK_LEN = 16
+BLOCK_LEN = 64
 BITS_IN_BYTE = 8
 KEY_LEN = 64
-ROUND_COUNT = 2
+ROUND_COUNT = 12
 
 
 class FeistelCipher:
@@ -48,19 +48,18 @@ class FeistelCipher:
         blocks = self.split_to_blocks(message)
         res = []
         for block in blocks:
-            left_init = block[0]
-            right_init = block[1]
+            left_init = block[:self.bytes_block_len // 2]
+            right_init = block[self.bytes_block_len // 2:]
             for iteration in range(self.round_count):
                 curr_key = self.key_gen_func(self.key, iteration)
-                print(curr_key)
                 left = left_init
                 right = right_init
                 left_int = self.bintoint(self.stobin(left))
                 right_int = self.bintoint(self.stobin(right))
-                left_part_enc = self.target_gen_func(left_int, curr_key)
+                left_part_enc = self.target_gen_func(left_int, curr_key, self.bloc_len // 2)
                 xored = left_part_enc ^ right_int
                 left_init = self.bintostr(self.itobin(xored))
-                right_init = right
+                right_init = left
             res.append(left_init)
             res.append(right_init)
         return "".join(res)
@@ -102,11 +101,11 @@ class FeistelCipher:
                 # self.call_target(left[iteration], curr_key)
                 # right[iteration + 1] = xor(left[iteration], scramble(right[iteration], iteration + 1, curr_key))
 
-    def call_target(self, left, key):
-        x = self.stobin(str(left))
-        x = self.bintoint(x)
-        res = self.target_gen_func(x, key)
-        return self.bintostr(self.itobin(res))
+    # def call_target(self, left, key):
+    #     x = self.stobin(str(left))
+    #     x = self.bintoint(x)
+    #     res = self.target_gen_func(x, key)
+    #     return self.bintostr(self.itobin(res))
 
     # xor two strings
     @staticmethod
@@ -116,6 +115,7 @@ class FeistelCipher:
     # string to binary
     @staticmethod
     def stobin(s):
+        # print(''.join('{:08b}'.format(ord(c)) for c in s))
         return ''.join('{:08b}'.format(ord(c)) for c in s)
 
     # binary to int
@@ -124,14 +124,14 @@ class FeistelCipher:
         return int(s, 2)
 
     # int to binary
-    @staticmethod
-    def itobin(i):
-        return bin(i)[2:]
+    # @staticmethod
+    def itobin(self, i):
+        # print(bin(i))
+        return bin(i)[2:].zfill(self.bloc_len // 2)
 
     # binary to string
     @staticmethod
     def bintostr(b):
-        n = int(b, 2)
         return ''.join(chr(int(b[i: i + 8], 2)) for i in range(0, len(b), 8))
 
         # binary_string = self.to_binary_string(message)
@@ -164,21 +164,21 @@ class FeistelCipher:
 
         res = []
         for block in binary_blocks:
-            left_init = block[0]
-            right_init = block[1]
-            for iteration in range(self.round_count - 1, -1, -1):
+            right_init = block[:self.bytes_block_len // 2]
+            left_init = block[self.bytes_block_len // 2:]
+            for iteration in range(self.round_count-1, -1, -1):
                 curr_key = self.key_gen_func(self.key, iteration)
-                print(curr_key)
                 left = left_init
                 right = right_init
                 left_int = self.bintoint(self.stobin(left))
                 right_int = self.bintoint(self.stobin(right))
-                left_part_enc = self.target_gen_func(left_int, curr_key)
+                left_part_enc = self.target_gen_func(left_int, curr_key, self.bloc_len // 2)
                 xored = left_part_enc ^ right_int
                 left_init = self.bintostr(self.itobin(xored))
-                right_init = right
-            res.append(left_init)
+                right_init = left
             res.append(right_init)
+            res.append(left_init)
+
         return "".join(res)
         #     r_right = block[len(block) // 2:].zfill(self.bloc_len // 2)
         #     r_left = block[:len(block) // 2].zfill(self.bloc_len // 2)
@@ -202,6 +202,7 @@ class FeistelCipher:
 if __name__ == '__main__':
     key_generator = SecretKeyGen(KEY_LEN)
     fc = FeistelCipher(key_generator, gen_func, target_func)
-    enc = fc.encrypt("hello")
+    enc = fc.encrypt("hello world")
+    dec = fc.decrypt(enc)
     print(enc)
-    print(fc.decrypt(enc))
+    print(dec)
