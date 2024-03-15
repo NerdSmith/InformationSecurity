@@ -49,9 +49,8 @@ class FeistelCipher:
         res = []
         previous_block = self.bintostr(self.itobinex(iv))
         for block in blocks:
-            block = self.xor(block, previous_block)
-            left_init = block[:self.bytes_block_len // 2]
-            right_init = block[self.bytes_block_len // 2:]
+            left_init = previous_block[:self.bytes_block_len // 2]
+            right_init = previous_block[self.bytes_block_len // 2:]
             for iteration in range(self.round_count):
                 curr_key = self.key_gen_func(self.key, iteration)
                 left = left_init
@@ -63,9 +62,10 @@ class FeistelCipher:
                 left_init = self.bintostr(self.itobin(xored))
                 right_init = left
 
-            ciphertext_block = left_init + right_init
+            ciphertext_block = self.xor(left_init + right_init, block)
             res.append(ciphertext_block)
             previous_block = ciphertext_block
+
         return "".join(res)
 
     # xor two strings
@@ -106,8 +106,8 @@ class FeistelCipher:
 
         previous_block = self.bintostr(self.itobinex(iv))
         for block in binary_blocks:
-            right_init = block[:self.bytes_block_len // 2]
-            left_init = block[self.bytes_block_len // 2:]
+            right_init = previous_block[:self.bytes_block_len // 2]
+            left_init = previous_block[self.bytes_block_len // 2:]
             for iteration in range(self.round_count-1, -1, -1):
                 curr_key = self.key_gen_func(self.key, iteration)
                 left = left_init
@@ -119,9 +119,8 @@ class FeistelCipher:
                 left_init = self.bintostr(self.itobin(xored))
                 right_init = left
 
-            decrypted_block = self.xor(right_init + left_init, previous_block)
-            res.append(decrypted_block)
-
+            plaintext_block = self.xor(right_init + left_init, block)
+            res.append(plaintext_block)
             previous_block = block
 
         return "".join(res)
